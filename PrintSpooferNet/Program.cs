@@ -56,6 +56,8 @@ namespace PrintSpooferNet
 
             // Start up the PrintSpoofer
             PrintSpoofer printSpoofer = new PrintSpoofer();
+            
+            // Give the printSpoofer a second or so to get setup before triggering with SpoolSample code
             Sleep(1000);
             printSpoofer.TriggerPrintSpoofer();
         }
